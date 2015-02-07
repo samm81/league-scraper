@@ -1,0 +1,11 @@
+/home/sam/league/league.js:82
+  for (_i = 0, _len = data.length; _i < _len; _i++) {
+                          ^
+TypeError: Cannot read property 'length' of undefined
+    at getRanked (/home/sam/league/league.js:82:27)
+    at /home/sam/league/league.js:94:14
+    at /home/sam/node_modules/leagueapi/lib/util.js:63:17
+    at IncomingMessage.<anonymous> (/home/sam/node_modules/leagueapi/lib/util.js:48:25)
+    at IncomingMessage.emit (events.js:117:20)
+    at _stream_readable.js:943:16
+    at process._tickCallback (node.js:419:13)
