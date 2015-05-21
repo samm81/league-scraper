@@ -1,6 +1,6 @@
 import sqlite3
 import signal
-import sys
+import sys, getopt
 from random import randint
 from requests import ConnectionError
 from riotwatcher import RiotWatcher, LoLException
@@ -85,10 +85,39 @@ def collect_data(summoner_id):
 	db_cursor.execute('INSERT OR REPLACE INTO Summoners VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', item)
 	db_connection.commit()
 
-if __name__ == '__main__':
+def randomGenerator():
 	while True:
-		while w.can_make_request():
-			summoner_id = randint(1, max_id)
-			#summoner_id = 20132258
-			print "checking id {}..... ".format(summoner_id),
-			collect_data(summoner_id)
+		yield randint(1, max_id)
+
+if __name__ == '__main__':
+	summoner_ids = []
+	try:
+		opts, args = getopt.getopt(sys.argv[1:], 'hi', ['help', 'importfile='])
+	except getopt.GetoptError:
+		print 'usage: league.py [-h --help] [-i file -importfile=file]'
+		sys.exit(2)
+
+	if not opts:
+		summoner_ids = randomGenerator()
+	else:
+		for opt, arg in opts:
+			if opt in ('-h', '--help'):
+				print 'usage: league.py [-h --help] [-i file -importfile=file]'
+				sys.exit()
+			elif opt in ('-i', '--import'):
+				try:
+					import_file = open(arg)
+					for line in import_file:
+						summoner_ids.append(int(line))	
+				except ValueError:
+					print 'import file is improperly formatted'
+					print 'file should consist of one id per line'
+					sys.exit(3)
+
+	for summoner_id in summoner_ids:
+		done = False
+		while not done:
+			if w.can_make_request():
+				print "checking id {}..... ".format(summoner_id),
+				collect_data(summoner_id)
+				done = True
