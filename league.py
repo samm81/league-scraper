@@ -33,7 +33,7 @@ def get_mode_data(player_data, mode):
 	for mode_data in player_data:
 		if mode_data['queue'] == mode:
 			return mode_data
-	return {}
+	raise LoLException('No {} mode data'.format(mode))
 
 def get_ranked_data(player_data):
 	return get_mode_data(player_data, 'RANKED_SOLO_5x5')
