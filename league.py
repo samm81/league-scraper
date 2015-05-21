@@ -5,7 +5,7 @@ from random import randint
 from requests import ConnectionError
 from riotwatcher import RiotWatcher, LoLException
 
-max_id = 10000000
+max_id = 1000000
 
 tierToPoints = { "BRONZE":0, "SILVER":500, "GOLD":1000, "PLATINUM":1500, "DIAMOND":2000, "CHALLENGER":2500, "MASTER":3000 }
 divisionToPoints = { "V":0, "IV":100, "III":200, "II":300, "I":400 }
