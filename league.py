@@ -3,6 +3,7 @@ import signal
 import sys, getopt
 from random import randint
 from requests import ConnectionError
+from itertools import chain
 from riotwatcher import RiotWatcher, LoLException
 
 max_id = 1000000
@@ -16,12 +17,13 @@ db_connection = sqlite3.connect('league.db')
 db_cursor = db_connection.cursor()
 
 def exit(signal, frame):
+	print "\nRecieved SIGINT, closing database connection and exiting"
 	db_connection.close()
 	sys.exit(1)
 signal.signal(signal.SIGINT, exit)
 
 def instantiateTable():
-	db_cursor.execute('create table Summoners(id INT PRIMARY KEY, games INT, wins INT, losses INT, minion_kills INT, champion_kills INT, turret_kills INT, assists INT, win_ratio FLOAT, avg_minion_kills FLOAT, avg_champion_kills FLOAT, avg_turret_kills FLOAT, avg_assists FLOAT, points INT, tier VARCHAR(10), division VARCHAR(2), league_points INT)')
+	db_cursor.execute("create table Summoners(id INT PRIMARY KEY, games INT, wins INT, losses INT, minion_kills INT, champion_kills INT, turret_kills INT, assists INT, win_ratio FLOAT, avg_minion_kills FLOAT, avg_champion_kills FLOAT, avg_turret_kills FLOAT, avg_assists FLOAT, points INT, tier VARCHAR(10), division VARCHAR(2), league_points INT)")
 
 def get_modes_data(summoner_ids):
 	return w.get_league_entry(summoner_ids=summoner_ids)
@@ -33,7 +35,7 @@ def get_mode_data(player_data, mode):
 	for mode_data in player_data:
 		if mode_data['queue'] == mode:
 			return mode_data
-	raise LoLException('No {} mode data'.format(mode))
+	raise LoLException("No {} mode data".format(mode))
 
 def get_ranked_data(player_data):
 	return get_mode_data(player_data, 'RANKED_SOLO_5x5')
@@ -52,9 +54,14 @@ def collect_data(summoner_id):
 	try:
 		ranked_data = get_ranked_data(get_player_data(get_modes_data([summoner_id]), summoner_id))
 		ranked_stats = get_ranked_stats(summoner_id)
-	except (LoLException, ConnectionError) as e:
+	except LoLException as e:
 		print e
-		return
+		if str(e) == 'Too many requests': # ugly, but the library is written with monolithic errors
+			return True
+		return False
+	except ConnectionError as e:
+		print e
+		return True
 
 	print "data found!"
 
@@ -82,8 +89,10 @@ def collect_data(summoner_id):
 
 	print "inserting item: {}".format(item);
 
-	db_cursor.execute('INSERT OR REPLACE INTO Summoners VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', item)
+	db_cursor.execute("INSERT OR REPLACE INTO Summoners VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", item)
 	db_connection.commit()
+	
+	return False
 
 def randomGenerator():
 	while True:
@@ -92,9 +101,9 @@ def randomGenerator():
 if __name__ == '__main__':
 	summoner_ids = []
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], 'hi', ['help', 'importfile='])
+		opts, args = getopt.getopt(sys.argv[1:], 'hi:', ['help', 'importfile='])
 	except getopt.GetoptError:
-		print 'usage: league.py [-h --help] [-i file -importfile=file]'
+		print "usage: league.py [-h --help] [-i file -importfile=file]"
 		sys.exit(2)
 
 	if not opts:
@@ -102,7 +111,7 @@ if __name__ == '__main__':
 	else:
 		for opt, arg in opts:
 			if opt in ('-h', '--help'):
-				print 'usage: league.py [-h --help] [-i file -importfile=file]'
+				print "usage: league.py [-h --help] [-i file -importfile=file]"
 				sys.exit()
 			elif opt in ('-i', '--import'):
 				try:
@@ -110,14 +119,16 @@ if __name__ == '__main__':
 					for line in import_file:
 						summoner_ids.append(int(line))	
 				except ValueError:
-					print 'import file is improperly formatted'
-					print 'file should consist of one id per line'
+					print "import file is improperly formatted"
+					print "file should consist of one id per line"
 					sys.exit(3)
 
 	for summoner_id in summoner_ids:
 		done = False
 		while not done:
 			if w.can_make_request():
-				print "checking id {}..... ".format(summoner_id),
-				collect_data(summoner_id)
+				retry = True
+				while retry:
+					print "checking id {}..... ".format(summoner_id),
+					retry = collect_data(summoner_id)
 				done = True
