@@ -1,6 +1,7 @@
 import sqlite3
 import signal
 import sys, getopt
+import logging
 from random import randint
 from requests import ConnectionError
 from itertools import chain
@@ -17,13 +18,13 @@ db_connection = sqlite3.connect('league.db')
 db_cursor = db_connection.cursor()
 
 def exit(signal, frame):
-	print "\nRecieved SIGINT, closing database connection and exiting"
+	logging.info("Recieved SIGINT, closing database connection and exiting")
 	db_connection.close()
 	sys.exit(1)
 signal.signal(signal.SIGINT, exit)
 
 def instantiateTable():
-	db_cursor.execute("create table Summoners(id INT PRIMARY KEY, games INT, wins INT, losses INT, minion_kills INT, champion_kills INT, turret_kills INT, assists INT, win_ratio FLOAT, avg_minion_kills FLOAT, avg_champion_kills FLOAT, avg_turret_kills FLOAT, avg_assists FLOAT, points INT, tier VARCHAR(10), division VARCHAR(2), league_points INT)")
+	db_cursor.execute("create table Summoners(id INT PRIMARY KEY, games INT, wins INT, losses INT, minion_kills INT, champion_kills INT, turret_kills INT, assists INT, win_ratio FLOAT, avg_minion_kills FLOAT, avg_champion_kills FLOAT, avg_turret_kills FLOAT, avg_assists FLOAT, points INT, tier VARCHAR(10), division VARCHAR(3), league_points INT)")
 
 def get_modes_data(summoner_ids):
 	return w.get_league_entry(summoner_ids=summoner_ids)
@@ -55,15 +56,15 @@ def collect_data(summoner_id):
 		ranked_data = get_ranked_data(get_player_data(get_modes_data([summoner_id]), summoner_id))
 		ranked_stats = get_ranked_stats(summoner_id)
 	except LoLException as e:
-		print e
+		logging.info(e)
 		if str(e) == 'Too many requests': # ugly, but the library is written with monolithic errors
 			return True
 		return False
 	except ConnectionError as e:
-		print e
+		logging.info(e)
 		return True
 
-	print "data found!"
+	logging.info("data found!")
 
 	tier = ranked_data['tier']
 	division = ranked_data['entries'][0]['division']
@@ -87,7 +88,7 @@ def collect_data(summoner_id):
 
 	item = (int(summoner_id), games, int(wins), int(losses), int(minion_kills), int(champion_kills), int(turret_kills), int(assists), win_ratio, avg_minion_kills, avg_champion_kills, avg_turret_kills, avg_assists, points, tier, division, int(league_points))
 
-	print "inserting item: {}".format(item);
+	logging.info("inserting item: {}".format(item))
 
 	db_cursor.execute("INSERT OR REPLACE INTO Summoners VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", item)
 	db_connection.commit()
@@ -101,34 +102,45 @@ def randomGenerator():
 if __name__ == '__main__':
 	summoner_ids = []
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], 'hi:', ['help', 'importfile='])
+		opts, args = getopt.getopt(sys.argv[1:], 'hi:', ['help', 'importfile=', 'lf=', 'logfile=', 'll=', 'loglevel='])
 	except getopt.GetoptError:
-		print "usage: league.py [-h --help] [-i file -importfile=file]"
+		print "usage: league.py [-h --help] [-i file -importfile=file] [-lf=file -logfile=file] [-ll=level -loglevel=level]"
 		sys.exit(2)
 
-	if not opts:
-		summoner_ids = randomGenerator()
+	logfile = ""
+	loglevel = "INFO"
+	for opt, arg in opts:
+		if opt in ('-h', '--help'):
+			print "usage: league.py [-h --help] [-i file --importfile=file] [--lf=file --logfile=file] [--ll=level --loglevel=level]"
+			sys.exit()
+		elif opt in ('-i', '--import'):
+			try:
+				import_file = open(arg)
+				for line in import_file:
+					summoner_ids.append(int(line))	
+			except ValueError:
+				logging.error("import file is improperly formatted")
+				logging.error("file should consist of one id per line")
+				sys.exit(3)
+		elif opt in ('--lf', '--logfile'):
+			logfile = arg
+		elif opt in ('--ll', '--loglevel'):
+			loglevel = getattr(logging, arg.upper())
+	
+	if not logfile:
+		logging.basicConfig(level=loglevel, format="%(asctime)s| %(levelname)s: %(message)s")
 	else:
-		for opt, arg in opts:
-			if opt in ('-h', '--help'):
-				print "usage: league.py [-h --help] [-i file -importfile=file]"
-				sys.exit()
-			elif opt in ('-i', '--import'):
-				try:
-					import_file = open(arg)
-					for line in import_file:
-						summoner_ids.append(int(line))	
-				except ValueError:
-					print "import file is improperly formatted"
-					print "file should consist of one id per line"
-					sys.exit(3)
+		logging.basicConfig(level=loglevel, filename=logfile, format="%(asctime)s| %(levelname)s: %(message)s")
+	
+	if not summoner_ids:
+		summoner_ids = randomGenerator()
 
 	for summoner_id in summoner_ids:
-		done = False
-		while not done:
-			if w.can_make_request():
-				retry = True
-				while retry:
-					print "checking id {}..... ".format(summoner_id),
-					retry = collect_data(summoner_id)
-				done = True
+		retry = True
+		while retry:
+			while not w.can_make_request():
+				pass
+			logging.info("checking id {}..... ".format(summoner_id),)
+			retry = collect_data(summoner_id)
+			if retry:
+				logging.info("...retrying")
