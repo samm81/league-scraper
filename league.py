@@ -56,12 +56,12 @@ def collect_data(summoner_id):
 		ranked_data = get_ranked_data(get_player_data(get_modes_data([summoner_id]), summoner_id))
 		ranked_stats = get_ranked_stats(summoner_id)
 	except LoLException as e:
-		logging.info(e)
+		logging.info("LoLException: {}".format(e))
 		if str(e) == 'Too many requests': # ugly, but the library is written with monolithic errors
 			return True
 		return False
 	except ConnectionError as e:
-		logging.info(e)
+		logging.info("Connection error: {}".format(e))
 		return True
 	except Exception as e:
 		logging.error(e)
