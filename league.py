@@ -63,6 +63,9 @@ def collect_data(summoner_id):
 	except ConnectionError as e:
 		logging.info(e)
 		return True
+	except Exception as e:
+		logging.error(e)
+		return True
 
 	logging.info("data found!")
 
