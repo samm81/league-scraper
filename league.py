@@ -131,9 +131,9 @@ if __name__ == '__main__':
 			loglevel = getattr(logging, arg.upper())
 	
 	if not logfile:
-		logging.basicConfig(level=loglevel, format="%(asctime)s| %(levelname)s: %(message)s")
+		logging.basicConfig(level=loglevel, format="%(asctime)s| %(module)s %(levelname)s: %(message)s")
 	else:
-		logging.basicConfig(level=loglevel, filename=logfile, format="%(asctime)s| %(levelname)s: %(message)s")
+		logging.basicConfig(level=loglevel, filename=logfile, format="%(asctime)s| %(module)s %(levelname)s: %(message)s")
 	
 	if not summoner_ids:
 		summoner_ids = randomGenerator()
