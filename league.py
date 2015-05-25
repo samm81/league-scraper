@@ -104,6 +104,7 @@ def randomGenerator():
 
 if __name__ == '__main__':
 	summoner_ids = []
+	mode = "DEFAULT"
 	try:
 		opts, args = getopt.getopt(sys.argv[1:], 'hi:', ['help', 'importfile=', 'lf=', 'logfile=', 'll=', 'loglevel='])
 	except getopt.GetoptError:
@@ -125,6 +126,7 @@ if __name__ == '__main__':
 				logging.error("import file is improperly formatted")
 				logging.error("file should consist of one id per line")
 				sys.exit(3)
+			mode = "IMPORT"
 		elif opt in ('--lf', '--logfile'):
 			logfile = arg
 		elif opt in ('--ll', '--loglevel'):
@@ -137,12 +139,21 @@ if __name__ == '__main__':
 	
 	if not summoner_ids:
 		summoner_ids = randomGenerator()
+	
+	logging.info("loaded up")
+	logging.info("{} mode".format(mode))
+	if logfile:
+		logging.info("logging to file {}".format(logfile))
+	logging.info("logging level {}".format(loglevel))
+	logging.info("getting started")
 
 	for summoner_id in summoner_ids:
 		retry = True
 		while retry:
+			logging.debug("waiting for clearence from riotwatcher")
 			while not w.can_make_request():
 				pass
+			logging.debug("cleared by riotwatcher")
 			logging.info("checking id {}..... ".format(summoner_id),)
 			retry = collect_data(summoner_id)
 			if retry:
