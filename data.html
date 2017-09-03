@@ -1,0 +1,154 @@
+<body>
+<style>
+.axis path,
+.axis line {
+	fill: none;
+	stroke:black;
+	shape-rendering: crispEdges;
+}
+
+.axis text {
+	font-family: sans-serif;
+	font-size: 11px;
+}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js" charset="utf-8"></script>
+
+<script src="data.js"></script>
+
+<script type="text/javascript">
+var xlen = window.innerWidth - 50
+var ylen = window.innerHeight - 250
+var xpad = 50
+var ypad = 50
+
+data = data.filter(function (v) { return v["points"] < 2500 })
+
+keys = {
+	games: {},
+	wins: {},
+	losses: {},
+	//win_ratio: {},
+	avg_minion_kills: {},
+	avg_champion_kills: {},
+	avg_turret_kills: {},
+	avg_assists: {}
+}
+for (var key in keys) {
+	var min = 2147483647
+	var max = 0
+	for (d in data) {
+		if (data[d][key] > max) { max = data[d][key] }
+		if (data[d][key] < min) { min = data[d][key] }
+	}
+	keys[key]['min'] = Math.round(min)
+	keys[key]['max'] = Math.round(max)
+	keys[key]['val'] = keys[key]['min']
+}
+
+var pad = function(domain) {
+	return [0, domain[1] + 10]
+}
+
+var y = d3.scale.linear()
+	.domain(pad(d3.extent(data, function(d, i) { return d["avg_minion_kills"] })))
+	.range([ylen - ypad, 0])
+
+var x = d3.scale.linear()
+	.domain(pad(d3.extent(data, function(d, i) { return d["points"] })))
+	.range([xpad,xlen])
+
+var xAxis = d3.svg.axis()
+	.scale(x)
+	.orient('bottom')
+	.ticks(20)
+
+var yAxis = d3.svg.axis()
+	.scale(y)
+	.orient('left')
+	.ticks(10)
+
+var svg = d3.select('body')
+	.append('svg')
+	.attr('width', xlen)
+	.attr('height', ylen)
+
+svg.append('g')
+	.attr('class', 'x axis')
+	.attr('transform', 'translate(0, ' + (ylen - ypad) + ')')
+	.call(xAxis)
+
+svg.append('g')
+	.attr('class', 'y axis')
+	.attr('transform', 'translate(' + xpad + ', 0)')
+	.call(yAxis)
+
+var update = function(points) {
+	var color = d3.scale.category20()
+	var pointsadd = points.enter()
+	pointsadd.append('circle')
+		.attr('cx', function(d, i) { return x(d["points"]) })
+		.attr('cy', function(d, i) { return y(d["avg_minion_kills"]) })
+		.attr('r', 1.5)
+		.attr('stroke', function(d,i) { return color(i) })
+		.attr('fill', function(d,i) { return color(i) })
+		.attr('class', function(d, i) { return '' + d["points"] + ' ' + d["avg_minion_kills"] + ' ' + d["wins"]} )
+	var pointsrm = points.exit()
+	pointsrm.remove()
+}
+
+var points = svg.selectAll('circle')
+	.data(data, function(d, i) { return d["id"] })
+
+update(points)
+
+var filter_data = function(f, data) {
+	data = data.filter(f)
+	var points = svg.selectAll('circle')
+		.data(data, function(d, i) { return d["id"] })
+	update(points)
+}
+
+for (var k in keys) {
+	(function (k) {
+	var key = keys[k]
+	var div = d3.select('body')
+		.append('div')
+		.attr('id', k)
+	div.append('span')
+		.text(k)
+		.append('span')
+		.text('    ')
+	var lbl = div
+		.append('span')
+		.attr('class', 'lbl')
+		.text(key['val'])
+		.append('span')
+		.text('    ')
+	div.append('input')
+		.attr('type', 'range')
+		.attr('max', key['max'])
+		.attr('min', key['min'])
+		.attr('value', key['val'])
+		.style('width', '600')
+		.on('change', function () {
+			var val = this.value
+			key['val'] = val
+			filter_data(function(d) {
+				for (var k in keys) {
+					if (d[k] < keys[k]['val']) {
+						return false
+					}
+				}
+				return true
+			}, data)
+		})
+		.on('input', function() {
+			d3.select('#'+k+' .lbl').text(this.value)
+			//lbl.text(this.value)
+		})
+	} (k))
+}
+
+</script>
+</body>
