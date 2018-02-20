@@ -6,7 +6,7 @@ import os
 from random import randint
 from requests import ConnectionError
 from itertools import chain
-from riotwatcher import RiotWatcher, LoLException
+from riotwatcher.legacy import RiotWatcher, LoLException
 
 max_id = 1000000
 
@@ -30,8 +30,8 @@ signal.signal(signal.SIGINT, exit)
 def instantiateTable():
 	db_cursor.execute("create table Summoners(id INT PRIMARY KEY, games INT, wins INT, losses INT, minion_kills INT, champion_kills INT, turret_kills INT, assists INT, win_ratio FLOAT, avg_minion_kills FLOAT, avg_champion_kills FLOAT, avg_turret_kills FLOAT, avg_assists FLOAT, points INT, tier VARCHAR(10), division VARCHAR(3), league_points INT)")
 
-def get_modes_data(summoner_id):
-	return w.league.by_summoner(region, summoner_id)
+def get_modes_data(summoner_ids):
+	return w.get_league_entry(summoner_ids=summoner_ids)
 
 def get_player_data(modes_data, summoner_id):
 	return modes_data[str(summoner_id)]
@@ -99,7 +99,7 @@ def collect_data(summoner_id):
 
 	db_cursor.execute("INSERT OR REPLACE INTO Summoners VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", item)
 	db_connection.commit()
-	
+
 	return False
 
 def randomGenerator():
@@ -125,7 +125,7 @@ if __name__ == '__main__':
 			try:
 				import_file = open(arg)
 				for line in import_file:
-					summoner_ids.append(int(line))	
+					summoner_ids.append(int(line))
 			except ValueError:
 				logging.error("import file is improperly formatted")
 				logging.error("file should consist of one id per line")
@@ -135,15 +135,15 @@ if __name__ == '__main__':
 			logfile = arg
 		elif opt in ('--ll', '--loglevel'):
 			loglevel = getattr(logging, arg.upper())
-	
+
 	if not logfile:
 		logging.basicConfig(level=loglevel, format="%(asctime)s| %(module)s %(levelname)s: %(message)s")
 	else:
 		logging.basicConfig(level=loglevel, filename=logfile, format="%(asctime)s| %(module)s %(levelname)s: %(message)s")
-	
+
 	if not summoner_ids:
 		summoner_ids = randomGenerator()
-	
+
 	logging.info("loaded up")
 	logging.info("{} mode".format(mode))
 	if logfile:

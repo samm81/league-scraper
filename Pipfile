@@ -7,7 +7,7 @@ name = "pypi"
 
 [packages]
 
-riotwatcher = "==1.2.5"
+riotwatcher = "== 2.2.1"
 
 
 [dev-packages]
