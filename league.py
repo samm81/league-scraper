@@ -2,6 +2,7 @@ import sqlite3
 import signal
 import sys, getopt
 import logging
+import os
 from random import randint
 from requests import ConnectionError
 from itertools import chain
@@ -12,7 +13,10 @@ max_id = 1000000
 tierToPoints = { "BRONZE":0, "SILVER":500, "GOLD":1000, "PLATINUM":1500, "DIAMOND":2000, "CHALLENGER":2500, "MASTER":3000 }
 divisionToPoints = { "V":0, "IV":100, "III":200, "II":300, "I":400 }
 
-w = RiotWatcher('b45d3cc2-65fd-4748-989a-f1ee16f1e039')
+# yeah I used to have the key hardcoded in here, so you could go back and look at old commits to find it if you wanted to, but it's expired by now so don't bother
+api_key = os.environ['RIOT_API_KEY']
+w = RiotWatcher(api_key)
+region = 'na1'
 
 db_connection = sqlite3.connect('league.db')
 db_cursor = db_connection.cursor()
@@ -26,8 +30,8 @@ signal.signal(signal.SIGINT, exit)
 def instantiateTable():
 	db_cursor.execute("create table Summoners(id INT PRIMARY KEY, games INT, wins INT, losses INT, minion_kills INT, champion_kills INT, turret_kills INT, assists INT, win_ratio FLOAT, avg_minion_kills FLOAT, avg_champion_kills FLOAT, avg_turret_kills FLOAT, avg_assists FLOAT, points INT, tier VARCHAR(10), division VARCHAR(3), league_points INT)")
 
-def get_modes_data(summoner_ids):
-	return w.get_league_entry(summoner_ids=summoner_ids)
+def get_modes_data(summoner_id):
+	return w.league.by_summoner(region, summoner_id)
 
 def get_player_data(modes_data, summoner_id):
 	return modes_data[str(summoner_id)]
@@ -108,14 +112,14 @@ if __name__ == '__main__':
 	try:
 		opts, args = getopt.getopt(sys.argv[1:], 'hi:', ['help', 'importfile=', 'lf=', 'logfile=', 'll=', 'loglevel='])
 	except getopt.GetoptError:
-		print "usage: league.py [-h --help] [-i file -importfile=file] [-lf=file -logfile=file] [-ll=level -loglevel=level]"
+		print("usage: league.py [-h --help] [-i file -importfile=file] [-lf=file -logfile=file] [-ll=level -loglevel=level]")
 		sys.exit(2)
 
 	logfile = ""
 	loglevel = "INFO"
 	for opt, arg in opts:
 		if opt in ('-h', '--help'):
-			print "usage: league.py [-h --help] [-i file --importfile=file] [--lf=file --logfile=file] [--ll=level --loglevel=level]"
+			print("usage: league.py [-h --help] [-i file --importfile=file] [--lf=file --logfile=file] [--ll=level --loglevel=level]")
 			sys.exit()
 		elif opt in ('-i', '--import'):
 			try:
